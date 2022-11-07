@@ -3,16 +3,8 @@
  * This module has been modified by Radim Kolar for OS/2 emx
  */
 
-/***********************************************************************
-  module:       socket.c
-  program:      popclient
-  SCCS ID:      @(#)socket.c    1.5  4/1/94
-  programmer:   Virginia Tech Computing Center
-  compiler:     DEC RISC C compiler (Ultrix 4.1)
-  environment:  DEC Ultrix 4.3 
-  description:  UNIX sockets code.
- ***********************************************************************/
- 
+/ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~**module : socket.c program : popclient SCCS ID : @(#) socket.c 1.5 4 / 1 / 94 programmer : Virginia Tech Computing Center compiler : DEC RISC C compiler(Ultrix 4.1) environment : DEC Ultrix 4.3 description : UNIX sockets code.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~** /
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <fcntl.h>
@@ -26,13 +18,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-int Socket(const char *host, int clientPort)
+    int Socket(const char *host, int clientPort)
 {
     int sock;
     unsigned long inaddr;
     struct sockaddr_in ad;
     struct hostent *hp;
-    
+
     memset(&ad, 0, sizeof(ad));
     ad.sin_family = AF_INET;
 
@@ -47,7 +39,7 @@ int Socket(const char *host, int clientPort)
         memcpy(&ad.sin_addr, hp->h_addr, hp->h_length);
     }
     ad.sin_port = htons(clientPort);
-    
+
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
         return sock;
@@ -55,4 +47,3 @@ int Socket(const char *host, int clientPort)
         return -1;
     return sock;
 }
-
