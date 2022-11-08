@@ -3,7 +3,7 @@
  * This module has been modified by Radim Kolar for OS/2 emx
  */
 
-/ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~**module : socket.c program : popclient SCCS ID : @(#) socket.c 1.5 4 / 1 / 94 programmer : Virginia Tech Computing Center compiler : DEC RISC C compiler(Ultrix 4.1) environment : DEC Ultrix 4.3 description : UNIX sockets code.~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~** /
+/ **module : socket.c program : popclient SCCS ID : @(#) socket.c 1.5 4 / 1 / 94 programmer : Virginia Tech Computing Center compiler : DEC RISC C compiler(Ultrix 4.1) environment : DEC Ultrix 4.3 description : UNIX sockets code.** /
 
 #include <sys/types.h>
 #include <sys/socket.h>

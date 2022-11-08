@@ -5,6 +5,8 @@ int HttpConn::m_epollfd = -1;
 // 所有的客户数
 int HttpConn::m_user_count = 0;
 
+PrintTime PTc;
+
 // 定义HTTP响应的一些状态信息
 const char *ok_200_title = "OK";
 const char *error_400_title = "Bad Request";
@@ -79,7 +81,7 @@ void HttpConn::close_conn()
 }
 
 // 初始化连接
-void HttpConn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMode)
+void HttpConn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMode, int close_log)
 {
     m_sockfd = sockfd;
     m_address = addr;
@@ -91,6 +93,8 @@ void HttpConn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMod
     // 当浏览器出现连接重置时,可能是网站根目录出错或http响应格式出错,或访问的文件中内容完全为空
     doc_root = root;
     m_TRIGMode = TRIGMode;
+
+    m_close_log = close_log;
 
     init();
 }
@@ -152,10 +156,10 @@ bool HttpConn::read_once()
             // 从m_read_buf + m_read_idx开始保存数据,大小是READ_BUFFER_SIZE - m_read_idx
             bytes_read = recv(m_sockfd, m_read_buf + m_read_idx,
                               READ_BUFFER_SIZE - m_read_idx, 0);
-            printf("bytes_read: %d\n", bytes_read);
+            PTc.mvPrintf("[info] bytes_read: ", bytes_read,"\n");
             if (bytes_read == -1)
             {
-                printf("sockfd:%d\n", m_sockfd);
+                PTc.mvPrintf("[info] sockfd:", m_sockfd, "\n");
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
                 {
                     // 非阻塞地读，没有数据时，会有这两个errno
@@ -271,6 +275,9 @@ bool HttpConn::add_response(const char *format, ...)
     }
     m_write_idx += len;
     va_end(arg_list); // 释放指针，将输入的参数 ap 置为 NULL。通常va_start和va_end是成对出现
+
+    LOG_INFO("request:%s", m_write_buf);
+
     return true;
 }
 
@@ -320,7 +327,7 @@ HttpConn::HTTP_CODE HttpConn::process_read() // 解析http请求
     HTTP_CODE ret = NO_REQUEST;
 
     char *text = 0;
-
+    PTc.mvPrintf("[info] Start parse request!");
     while (((m_check_state == CHECK_STATE_CONTENT) && (line_status == LINE_OK)) ||
            (line_status = parse_line()) == LINE_OK)
     {
@@ -329,7 +336,9 @@ HttpConn::HTTP_CODE HttpConn::process_read() // 解析http请求
         // 获取一行数据
         text = get_line();
         m_start_line = m_checked_idx;
-        printf("got 1 http line :\n       %s\n", text);
+        LOG_INFO("%s", text);
+        // printf("got 1 http line :\n       %s\n", text);
+        printf("    %s\n", text);
 
         switch (m_check_state)
         {
@@ -371,7 +380,7 @@ HttpConn::HTTP_CODE HttpConn::process_read() // 解析http请求
         }
         }
     }
-
+    PTc.mvPrintf("[info] Parse success!");
     return NO_REQUEST;
 }
 
@@ -483,6 +492,7 @@ HttpConn::LINE_STATUS HttpConn::parse_line()
 // 解析http请求行，获取请求方法，目标url，http版本
 HttpConn::HTTP_CODE HttpConn::parse_request_line(char *text)
 {
+    printf("[parse] There is line~\n");
     // text = "GET / HTTP/1.1"
     m_url = strpbrk(text, " \t"); // 从text第一个字符向后寻找，如果该字符存在于s2中，那么就从这个字符的位置开始返回
     // m_url = " / HTTP/1.1"
@@ -534,6 +544,7 @@ HttpConn::HTTP_CODE HttpConn::parse_request_line(char *text)
 }
 HttpConn::HTTP_CODE HttpConn::parse_headers(char *text) // 解析请求头
 {
+    printf("[parse] There is header~\n");
     // 遇到空行，表示头部字段解析完毕
     if (text[0] == '\0')
     {
@@ -573,13 +584,15 @@ HttpConn::HTTP_CODE HttpConn::parse_headers(char *text) // 解析请求头
     }
     else
     {
-        printf("oop! Unkonwn header %s\n", text);
+        LOG_INFO("oop!unknow header: %s", text);
+        printf("[error] oop! Unkonwn header %s\n\n", text);
     }
     return NO_REQUEST;
 }
 // 没有真正解析HTTP请求的请求体，只是判断它是否被完整地读入了
 HttpConn::HTTP_CODE HttpConn::parse_content(char *text) // 解析请求体
 {
+    printf("[parse] There is content~\n");
     if (m_read_idx >= (m_content_length + m_checked_idx))
     {
         text[m_content_length] = '\0';
@@ -631,17 +644,17 @@ HttpConn::HTTP_CODE HttpConn::do_request()
 void HttpConn::process()
 {
     // 解析http请求
-    printf("\n~~~~~~~~~~~~~~~~~~~~~~~process~~~~~~~~~~~~~~~~~~~~~~~\n\n");
+    PTc.mvPrintf("[info] Start parse request!");
     HTTP_CODE read_ret = process_read();
     if (read_ret == NO_REQUEST)
     {
         modfd(m_epollfd, m_sockfd, EPOLLIN, m_TRIGMode);
         return;
     }
-    printf("******Process success!******\n");
+    PTc.mvPrintf("[info] Parse success!\n");
 
     // 生成响应
-    printf("\n~~~~~~~~~~~~~~~~~~~~~~~Response!~~~~~~~~~~~~~~~~~~~~~~~\n");
+    PTc.mvPrintf("[info] Response!");
     bool write_ret = process_write(read_ret);
     if (!write_ret)
     {
@@ -649,5 +662,5 @@ void HttpConn::process()
     }
     // 因为使用了ONESHOT，所以必须每次操作完都重新去添加事件
     modfd(m_epollfd, m_sockfd, EPOLLOUT, m_TRIGMode);
-    printf("******Response success!******\n");
+    PTc.mvPrintf("[info] Response success!\n\n");
 }

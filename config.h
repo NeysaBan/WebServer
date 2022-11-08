@@ -25,6 +25,9 @@ class Config{
 
         int thread_num;
 
+        int LOGWrite;   // 日志写入方式
+
+        int close_log;
 
     private:
 };

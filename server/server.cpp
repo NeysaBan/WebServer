@@ -1,5 +1,7 @@
 #include "server.h"
 
+PrintTime PTs;
+
 WebServer::WebServer()
 {
     // http_conn对象
@@ -13,7 +15,8 @@ WebServer::WebServer()
     strcpy(m_root, server_path);
     strcat(m_root, root); // 路径拼接
     // m_root = "/data/cpp/WebServer/resources";
-    printf("%s\n", m_root);
+    PTs.mvPrintf("[info] html stored in ", m_root);
+    printf("\n");
 
     // 定时器
     users_timer = new client_data[MAX_FD];
@@ -31,13 +34,17 @@ WebServer::~WebServer()
 }
 
 // TODO 和源代码不同
-void WebServer::init(int port, int opt_linger, int trigmode, int thread_num)
+void WebServer::init(int port, int opt_linger, int trigmode, int thread_num,
+                     int log_write, int close_log)
 {
     m_port = port;
     m_opt_linger = opt_linger;
     m_TRIGmode = trigmode;
     m_thread_num = thread_num;
     // m_maxRequests = maxRequests;
+
+    m_log_write = log_write;
+    m_close_log = close_log;
 }
 
 void WebServer::trig_mode()
@@ -65,6 +72,18 @@ void WebServer::trig_mode()
     {
         m_LISTENTrigmode = 1;
         m_CONNTrigmode = 1;
+    }
+}
+
+void WebServer::log_write()
+{
+    if (0 == m_close_log)
+    {
+        //初始化日志
+        if (1 == m_log_write)
+            Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 800);
+        else
+            Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 0);
     }
 }
 
@@ -145,7 +164,7 @@ void WebServer::timer(int connfd, struct sockaddr_in client_address)
         };
     */
 
-    users[connfd].init(connfd, client_address, m_root, m_CONNTrigmode);
+    users[connfd].init(connfd, client_address, m_root, m_CONNTrigmode, m_close_log);
 
     users_timer[connfd].address = client_address;
     users_timer[connfd].sockfd = connfd;
@@ -166,6 +185,8 @@ void WebServer::adjust_timer(util_timer *timer)
     time_t cur = time(NULL);
     timer->expire = cur + 3 * TIMESLOT;
     util.m_timer_lst.adjust_timer(timer);
+
+    LOG_INFO("%s", "adjust timer once");
 }
 
 void WebServer::deal_timer(util_timer *timer, int sockfd)
@@ -173,6 +194,8 @@ void WebServer::deal_timer(util_timer *timer, int sockfd)
     timer->cb_func(&users_timer[sockfd]);
     if (timer)
         util.m_timer_lst.del_timer(timer);
+
+    LOG_INFO("close fd %d", users_timer[sockfd].sockfd);
 }
 
 bool WebServer::dealClinetData()
@@ -182,14 +205,17 @@ bool WebServer::dealClinetData()
     if (0 == m_LISTENTrigmode)
     { // 一次不接收完,后续还会通知
         int connfd = accept(m_listenfd, (struct sockaddr *)&ClientAddr, &ClientAddr_Len);
+        PTs.mvPrintf("[connect] 服务器你好, 客户端 ", connfd,", 听你指挥了!\n");
         if (connfd < 0)
         {
-            printf("errno is : %d\n", errno);
+            PTs.mvPrintf("[error] errno is : %d\n", errno);
+            LOG_ERROR("%s:errno is:", errno , ", accept error");
             return false;
         }
         if (HttpConn::m_user_count >= MAX_FD)
         {
             util.show_error(connfd, "Internal server busy");
+            LOG_ERROR("%s", "Internal server busy");
             return false;
         }
         timer(connfd, ClientAddr);
@@ -201,11 +227,13 @@ bool WebServer::dealClinetData()
             int connfd = accept(m_listenfd, (struct sockaddr *)&ClientAddr, &ClientAddr_Len);
             if (connfd < 0)
             {
+                LOG_ERROR("%s:errno is:%d", "accept error", errno);
                 break;
             }
             if (HttpConn::m_user_count >= MAX_FD)
             {
                 util.show_error(connfd, "Internal server busy");
+                LOG_ERROR("%s", "Internal server busy");
                 break;
             }
             timer(connfd, ClientAddr);
@@ -257,7 +285,8 @@ void WebServer::dealwithRead(int sockfd)
     // proactor
     if (users[sockfd].read_once())
     {
-        printf("take the task to queue······\n");
+        PTs.mvPrintf("[info] 客户端", sockfd, "请稍等, take the task to queue······\n");
+        LOG_INFO("deal with the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
         m_pool->append(users + sockfd);
 
         if (timer)
@@ -277,6 +306,7 @@ void WebServer::dealwithWrite(int sockfd)
     // proactor
     if (users[sockfd].write())
     {
+        LOG_INFO("send data to the client(%s)", inet_ntoa(users[sockfd].get_address()->sin_addr));
         if (timer)
             adjust_timer(timer);
     }
@@ -295,6 +325,7 @@ void WebServer::eventLoop()
 
         if (number < 0 && errno != EINTR)
         {
+            LOG_ERROR("%s", "epoll failure");
             break;
         }
 
@@ -305,7 +336,7 @@ void WebServer::eventLoop()
             // 处理新到的客户连接
             if (sockfd == m_listenfd)
             {
-                printf("~~~~~~~~~~~~~~~~~~~~~~~There is a new client~~~~~~~~~~~~~~~~~~~~~~~~\n");
+                PTs.mvPrintf("[connect] 服务端看见: There is a new client~\n");
                 bool flag = dealClinetData();
                 if (false == flag)
                     continue;
@@ -317,26 +348,29 @@ void WebServer::eventLoop()
             }
             else if ((sockfd == m_pipefd[0]) && (events[i].events & EPOLLIN))
             {
-                printf("\n~~~~~~~~~~~~~~~~~~~~~~~Deal with Signal~~~~~~~~~~~~~~~~~~~~~~~\n");
+                PTs.mvPrintf("[info] Deal with Signal");
                 bool flag = dealwithSignal(timeout, stop_server);
-                printf("******Deal Signal success!******\n");
+                if (false == flag)
+                    LOG_ERROR("%s", "dealclientdata failure");
+                PTs.mvPrintf("Deal Signal success!");
             }
             else if (events[i].events & EPOLLIN)
             {
-                printf("\n~~~~~~~~~~~~~~~~~~~~~~~Deal with Reading~~~~~~~~~~~~~~~~~~~~~~~\n");
+                PTs.mvPrintf("[info] Deal with Reading");
                 dealwithRead(sockfd);
-                printf("******Deal Reading success!******\n");
+                PTs.mvPrintf("Deal Reading success!\n");
             }
             else if (events[i].events & EPOLLOUT)
             {
-                printf("\n~~~~~~~~~~~~~~~~~~~~~~~Deal with Writing~~~~~~~~~~~~~~~~~~~~~~~\n");
+                PTs.mvPrintf("[info] Deal with Writing");
                 dealwithWrite(sockfd);
-                printf("******Deal Writing success!******\n");
+                PTs.mvPrintf("Deal Writing success!\n");
             }
         }
         if (timeout)
         {
             util.timer_handler();
+            LOG_INFO("%s", "timer tick");
             timeout = false;
         }
     }

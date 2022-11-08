@@ -21,6 +21,8 @@
 #include "../server/epoller.h"
 #include "../timer/lst_timer.h"
 #include "../pool/threadpool.h"
+#include "../log/log.h"
+#include "../print_time/print_time.h"
 
 class HttpConn{
     public:
@@ -62,7 +64,7 @@ class HttpConn{
         HttpConn() {}
         ~HttpConn() {}
         
-        void init(int sockfd, const sockaddr_in &addr, char *, int TRIGMode); // 初始化新接收的连接
+        void init(int sockfd, const sockaddr_in &addr, char *, int TRIGMode, int close_log); // 初始化新接收的连接
         void close_conn(); // 关闭连接
         void process(); // 处理客户端请求
         bool read_once(); // 非阻塞地读
@@ -108,6 +110,8 @@ class HttpConn{
         int bytes_have_send;
 
         int m_state;    // 读为0, 写为1
+
+        int m_close_log;
 
 
         void init(); // 初始化连接其余的信息

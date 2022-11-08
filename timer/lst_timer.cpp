@@ -1,5 +1,8 @@
 #include "lst_timer.h"
 #include "../http/httpconn.h"
+#include "../print_time/print_time.h"
+
+PrintTime PTt;
 
 /*----------------------------------------------sort_timer_lst----------------------------------------*/
 
@@ -158,7 +161,7 @@ void sort_timer_lst::tick()
     {
         return;
     }
-    printf("\n~~~~~~~~~~~~~~~~~~~~~~~Timer Tick~~~~~~~~~~~~~~~~~~~~~~~\n");
+    PTt.mvPrintf("[alarm] 间隔时间提醒: Timer Tick\n\n");
     time_t cur = time(NULL); // 获取当前系统时间
     util_timer *tmp = head;
     // 从头节点开始依次处理每个定时器,直到遇到一个尚未到期的定时器
@@ -166,7 +169,7 @@ void sort_timer_lst::tick()
     {
         /* 因为每个定时器都使用绝对时间作为超时值,所以可以把定时器的超时值和当前系统时间
             进行比较以判断定时器是否到期*/
-        if (cur < tmp->expire)  // 链表上的定时器是按照到期时间排列的,快到期的在前面
+        if (cur < tmp->expire) // 链表上的定时器是按照到期时间排列的,快到期的在前面
         {
             break;
         }
@@ -266,5 +269,7 @@ void cb_func(client_data *user_data)
     assert(user_data);
     close(user_data->sockfd);
     HttpConn::m_user_count--;
-    printf( "~~~~~~~~~~~~~~~~~~~~~~~close fd %d! good day~~~~~~~~~~~~~~~~~~~~~~~~\n", user_data->sockfd );
+
+    
+    PTt.mvPrintf("[closed] Client ", user_data->sockfd, " close! Bye! Gooooood day!~\n");
 }

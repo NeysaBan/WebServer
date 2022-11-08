@@ -1,34 +1,38 @@
 #include "config.h"
 
+int main(int argc, char *argv[])
+{
 
-int main(int argc, char* argv[]){ 
-
-    Config config;  // 解析命令行
+    Config config; // 解析命令行
 
     config.parse_arg(argc, argv);
 
     WebServer server;
 
-    printf("\n#######################Init Server····##########################\n");
-    server.init(config.PORT, config.OPT_LINGER, config.TRIGMode, config.thread_num);
-    printf("######Init Server success!######\n\n");
+    PrintTime PT;
+    PT.mvPrintf("[info]  Init Server···");
+    server.init(config.PORT, config.OPT_LINGER, config.TRIGMode, config.thread_num, config.LOGWrite, config.close_log);
+    PT.mvPrintf("Init Server success!\n");
 
+    PT.mvPrintf("Init Write····");
+    server.log_write();
+    PT.mvPrintf("Init Write success!\n");
 
-    printf("\n#######################Init Threadpool····##########################\n");
+    PT.mvPrintf("Init Threadpool····");
     server.thread_pool();
-    printf("######Init Threadpool success!######\n\n");
+    PT.mvPrintf("Init Threadpool success!\n");
 
-    printf("\n#######################Init Trigmode····##########################\n");
+    PT.mvPrintf("Init Trigmode····");
     server.trig_mode();
-    printf("######Init Trigmode success!######\n\n");
+    PT.mvPrintf("Init Trigmode success!\n");
 
-    printf("\n#######################Event Listen····##########################\n");
+    PT.mvPrintf("Event Listen····");
     server.eventListen();
-    printf("######Event Listen success!######\n\n");
+    PT.mvPrintf("Event Listen success!\n");
 
-    printf("\n#######################Event Loop····##########################\n");
+    PT.mvPrintf("Event Loop····");
     server.eventLoop();
-    printf("######Event Loop success!######\n\n");
+    PT.mvPrintf("Event Loop success!\n");
 
     return 0;
 }

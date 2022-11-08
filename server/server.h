@@ -26,19 +26,25 @@ class WebServer{
         WebServer();
         ~WebServer();
 
-        void init(int port, int opt_linger, int trigmode, int thread_num);  
+        void init(int port, int opt_linger, int trigmode, int thread_num,
+                    int log_write, int close_log);  
 
         void thread_pool();
         void trig_mode();
+        void log_write();
+
         void eventListen();
         void eventLoop();
+
         void timer(int connfd, struct sockaddr_in client_address);
         void adjust_timer(util_timer *timer);
         void deal_timer(util_timer *timer, int sockfd);
+
         bool dealClinetData();
         bool dealwithSignal(bool& timeout, bool& stop_server);
         void dealwithRead(int sockfd);
         void dealwithWrite(int sockfd);
+
 
     public:  
         //基础
@@ -64,6 +70,8 @@ class WebServer{
         int m_LISTENTrigmode;
         int m_CONNTrigmode;
 
+        int m_log_write;
+        int m_close_log;
 
         // 定时器相关
         client_data* users_timer;
