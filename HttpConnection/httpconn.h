@@ -18,9 +18,9 @@
 #include <sys/uio.h>
 #include <string.h>
 
-#include "../server/epoller.h"
+#include "../Server/epoller.h"
 #include "../timer/lst_timer.h"
-#include "../pool/threadpool.h"
+#include "../ThreadPool/threadpool.h"
 #include "../log/log.h"
 #include "../print_time/print_time.h"
 

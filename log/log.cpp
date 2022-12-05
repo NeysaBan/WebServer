@@ -101,7 +101,9 @@ void Log::write_log(int level, const char *format, ...)
     }
 
     // 写入一个log, 对m_count++
-    m_mutex.lock();
+    std::unique_lock<mutex> lock(m_mutex);
+    // m_mutex.lock();
+
     m_count++;
 
     if(m_today != my_tm.tm_mday || m_count % m_split_lines == 0)
@@ -125,13 +127,15 @@ void Log::write_log(int level, const char *format, ...)
         }
         m_fp = fopen(new_log, "a");
     }
-    m_mutex.unlock();
+    // m_mutex.unlock();
+    lock.unlock();
 
     va_list valst;
     va_start(valst, format);
 
     string log_str;
-    m_mutex.lock();
+    // m_mutex.lock();
+    lock.lock();
 
     //写入的具体时间内容格式
     int n = snprintf(m_buf, 48, "%d-%02d-%02d %02d:%02d:%02d.%06ld %s ",
@@ -143,15 +147,18 @@ void Log::write_log(int level, const char *format, ...)
     m_buf[n + m + 1] = '\0';
     log_str = m_buf;
 
-    m_mutex.unlock();
+    // m_mutex.unlock();
+    lock.unlock();
 
     if(m_is_async && !m_log_queue->full())
         m_log_queue->push(log_str);
     else
     {
-        m_mutex.lock();
+        // m_mutex.lock();
+        lock.lock();
         fputs(log_str.c_str(), m_fp);
-        m_mutex.unlock();
+        // m_mutex.unlock();
+        lock.unlock();
     }
 
     va_end(valst);
@@ -159,8 +166,8 @@ void Log::write_log(int level, const char *format, ...)
 
 void Log::flush(void)
 {
-    m_mutex.lock();
-    //强制刷新写入流缓冲区
-    fflush(m_fp);
-    m_mutex.unlock();
+    std::unique_lock<mutex> lock(m_mutex);
+    // m_mutex.lock();
+    fflush(m_fp);   
+    // m_mutex.unlock();
 }

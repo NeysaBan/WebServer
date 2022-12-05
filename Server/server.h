@@ -13,8 +13,8 @@
 
 #include "epoller.h"
 #include "../timer/lst_timer.h"
-#include "../pool/threadpool.h"
-#include "../http/httpconn.h"
+#include "../ThreadPool/threadpool.h"
+#include "../HttpConnection/httpconn.h"
 
 const int MAX_FD = 65536;           //最大文件描述符
 const int MAX_EVENT_NUMBER = 10000; //最大事件数

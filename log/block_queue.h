@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/time.h>
+
+#include <mutex>
+#include <condition_variable>
+
 #include "../lock/locker.h"
 
 using namespace std;
@@ -115,12 +119,15 @@ public:
     /* *push和pop时遵从生产者消费者模型** */
     bool push(const T &item)
     {
-        m_mutex.lock();
+
+        std::unique_lock<std::mutex> lock(m_mutex);
+        // m_mutex.lock();
 
         if (m_size >= m_max_size)
         {
-            m_cond.broadcast();
-            m_mutex.unlock();
+            // m_cond.broadcast();
+            m_condition_variable.notify_all();
+            // m_mutex.unlock();
             return false;
         }
 
@@ -129,27 +136,33 @@ public:
 
         m_size++;
 
-        m_cond.broadcast(); // 有新的元素到来,把所有线程唤醒,看看是不是满足他们的条件了
-        m_mutex.unlock();
+        m_condition_variable.notify_all();
+        // m_cond.broadcast(); // 有新的元素到来,把所有线程唤醒,看看是不是满足他们的条件了
+        // m_mutex.unlock();
         return true;
     }
 
     bool pop(T &item)
     {
-        m_mutex.lock();
+        std::unique_lock<std::mutex> lock(m_mutex);
+        // m_mutex.lock();
+        
         while (m_size <= 0)
         {
-            if (!m_cond.wait(m_mutex.get()))
-            {
-                m_mutex.unlock();
-                return false;
-            }
+            // if (!m_cond.wait(m_mutex.get()))
+            // {
+            //     m_mutex.unlock();
+            //     return false;
+            // }
+
+            // m_condition_variable.wait(lock);
+            return false;
         }
 
         m_front = (m_front + 1) % m_max_size;
         item = m_array[m_front];
         m_size--;
-        m_mutex.unlock();
+        // m_mutex.unlock();
         return true;
     }
 
@@ -159,16 +172,18 @@ public:
         struct timespec t = {0, 0};
         struct timeval now = {0, 0};
         gettimeofday(&now, NULL);
-        m_mutex.lock();
+        // m_mutex.lock();
+        std::unique_lock<std::mutex> lock(m_mutex);
         if (m_size <= 0)
         {
             t.tv_sec = now.tv_sec + ms_timeout / 1000;
             t.tv_nsec = (ms_timeout % 1000) * 1000;
-            if (!m_cond.timedwait(m_mutex.get(), t))
-            {
-                m_mutex.unlock();
-                return false;
-            }
+            // if (!m_cond.timedwait(m_mutex.get(), t))
+            // {
+            //     m_mutex.unlock();
+            //     return false;
+            // }
+            return false;
         }
 
         if (m_size <= 0)
@@ -185,8 +200,11 @@ public:
     }
 
 private:
-    locker m_mutex;
-    cond m_cond;
+    // locker m_mutex;
+    // cond m_cond;
+
+    std::mutex m_mutex;
+    std::condition_variable m_condition_variable;
 
     T *m_array;
     int m_size;

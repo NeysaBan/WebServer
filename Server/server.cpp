@@ -35,7 +35,7 @@ WebServer::~WebServer()
 
 // TODO 和源代码不同
 void WebServer::init(int port, int opt_linger, int trigmode, int thread_num,
-                     int log_write, int close_log)
+                    int log_write, int close_log)
 {
     m_port = port;
     m_opt_linger = opt_linger;
